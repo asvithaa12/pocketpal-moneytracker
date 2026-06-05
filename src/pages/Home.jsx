@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Legend
@@ -45,6 +45,7 @@ function getGreeting() {
 
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState({
     spentThisWeek: 0,
@@ -84,7 +85,7 @@ export default function Home() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, location.key]);
 
   // Chart data — derived from full transactions list for selected month
   const monthExpenses = transactions.filter(

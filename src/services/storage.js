@@ -365,7 +365,9 @@ export function isSummaryGeneratedThisWeek() {
 // ─── Row mappers ──────────────────────────────────────────────────────────────
 
 function txToDbRow(tx) {
-  const row = {
+  // Never send id — Supabase generates it via gen_random_uuid().
+  // Sending a client-generated uuid would cause conflicts on retries.
+  return {
     type: tx.type,
     amount: tx.amount,
     category: tx.category,
@@ -376,11 +378,6 @@ function txToDbRow(tx) {
     source: tx.source,
     qr_id: tx.qrId || null,
   };
-  // Only include id if it's a proper UUID already assigned by the server
-  if (tx.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tx.id)) {
-    row.id = tx.id;
-  }
-  return row;
 }
 
 function dbRowToTx(row) {

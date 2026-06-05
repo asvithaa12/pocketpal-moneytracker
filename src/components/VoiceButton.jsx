@@ -6,8 +6,14 @@ export default function VoiceButton({ onResult, onError }) {
   const [state, setState] = useState('idle'); // idle | listening | processing
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef(null);
+  const stateRef = useRef('idle'); // tracks state without closure staleness
 
   const isSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+
+  const updateState = (s) => {
+    stateRef.current = s;
+    setState(s);
+  };
 
   const startListening = useCallback(async () => {
     if (!isSupported) {
@@ -21,40 +27,40 @@ export default function VoiceButton({ onResult, onError }) {
     recognition.interimResults = false;
     recognitionRef.current = recognition;
 
-    recognition.onstart = () => setState('listening');
+    recognition.onstart = () => updateState('listening');
     recognition.onend = () => {
-      if (state === 'listening') setState('idle');
+      // Use ref to avoid stale closure — only reset if still in listening state
+      if (stateRef.current === 'listening') updateState('idle');
     };
     recognition.onerror = (e) => {
-      setState('idle');
+      updateState('idle');
       onError?.(`Mic error: ${e.error}`);
     };
     recognition.onresult = async (e) => {
       const raw = e.results[0][0].transcript;
       setTranscript(raw);
-      setState('processing');
+      updateState('processing');
       try {
         const result = await parseVoiceTranscript(raw);
-        setState('idle');
+        updateState('idle');
         if (result.error) {
-          // Pass both raw and error so caller can show error + fallback to manual
           onResult?.({ raw, error: result.error });
         } else {
           onResult?.({ raw, parsed: result.parsed });
         }
       } catch (err) {
-        setState('idle');
+        updateState('idle');
         onResult?.({ raw, error: err.message || 'Parsing failed' });
       }
     };
 
-    setState('listening');
+    updateState('listening');
     recognition.start();
-  }, [isSupported, onResult, onError, state]);
+  }, [isSupported, onResult, onError]);
 
   const stopListening = () => {
     recognitionRef.current?.stop();
-    setState('idle');
+    updateState('idle');
   };
 
   if (!isSupported) {
@@ -78,7 +84,7 @@ export default function VoiceButton({ onResult, onError }) {
             ? 'bg-slate-200 text-slate-400'
             : 'bg-[#556B2F] text-white hover:bg-[#3D4A20] active:scale-95 shadow-[0_8px_16px_rgba(85,107,47,0.2)] hover:shadow-[0_12px_24px_rgba(85,107,47,0.3)] focus:ring-[#556B2F] focus:ring-opacity-30'
         }`}
-        aria-label="Voice input"
+        aria-label={state === 'listening' ? 'Stop recording' : 'Start voice input'}
       >
         {state === 'processing' ? (
           <Loader2 size={24} className="animate-spin" />
