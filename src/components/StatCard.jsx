@@ -1,7 +1,7 @@
 export default function StatCard({ label, value, sub, icon: Icon, color = '#556B2F', bg = '#F8F7F2', trend }) {
   return (
     <div
-      className="bg-white rounded-card p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-1 cursor-default"
+      className="bg-white rounded-card p-4 flex flex-col gap-3 transition-all duration-200 cursor-default"
       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #F0F2F5' }}
       onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.10)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'; }}
