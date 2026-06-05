@@ -1,154 +1,337 @@
-const TRANSACTIONS_KEY = 'pp_transactions';
-const QRTAGS_KEY = 'pp_qrtags';
-const LAST_SUMMARY_KEY = 'pp_last_summary_date';
+/**
+ * storage.js — Supabase-backed data layer.
+ * Supabase is the single source of truth for transactions and qr_tags.
+ * localStorage is used only for the weekly summary text cache.
+ */
 
-// ── Transactions ─────────────────────────────────────────────────────────────
+import { supabase } from './supabaseClient';
 
-export function getTransactions() {
-  try {
-    const raw = localStorage.getItem(TRANSACTIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+// ─── Transactions ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch all transactions ordered by date descending.
+ * Returns [] on error.
+ */
+export async function getTransactions() {
+  console.log('[storage] getTransactions');
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('[storage] getTransactions error:', error.message);
     return [];
   }
+  return data.map(dbRowToTx);
 }
 
-export function saveTransaction(tx) {
-  try {
-    const list = getTransactions();
-    list.unshift(tx);
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(list));
-    return true;
-  } catch {
-    return false;
+/**
+ * Save a single transaction to Supabase.
+ * Returns the saved transaction (with server-assigned id) or throws.
+ */
+export async function saveTransaction(tx) {
+  const row = txToDbRow(tx);
+  console.log('[storage] saveTransaction', row);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[storage] saveTransaction error:', error.message);
+    throw error;
+  }
+  console.log('[storage] saveTransaction success:', data.id);
+  return dbRowToTx(data);
+}
+
+/**
+ * Save multiple transactions (batch insert).
+ */
+export async function saveTransactions(txList) {
+  const rows = txList.map(txToDbRow);
+  console.log('[storage] saveTransactions batch:', rows.length);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert(rows)
+    .select();
+
+  if (error) {
+    console.error('[storage] saveTransactions error:', error.message);
+    throw error;
+  }
+  return data.map(dbRowToTx);
+}
+
+/**
+ * Delete a transaction by id.
+ */
+export async function deleteTransaction(id) {
+  console.log('[storage] deleteTransaction', id);
+  const { error } = await supabase.from('transactions').delete().eq('id', id);
+  if (error) {
+    console.error('[storage] deleteTransaction error:', error.message);
+    throw error;
   }
 }
 
-export function saveTransactions(txList) {
-  try {
-    const existing = getTransactions();
-    const combined = [...txList, ...existing];
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(combined));
-    return true;
-  } catch {
-    return false;
+/**
+ * Delete all transactions.
+ */
+export async function clearTransactions() {
+  console.log('[storage] clearTransactions');
+  const { error } = await supabase
+    .from('transactions')
+    .delete()
+    .not('id', 'is', null);
+  if (error) {
+    console.error('[storage] clearTransactions error:', error.message);
+    throw error;
   }
 }
 
-export function deleteTransaction(id) {
-  try {
-    const list = getTransactions().filter(t => t.id !== id);
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(list));
-    return true;
-  } catch {
-    return false;
-  }
-}
+// ─── QR Tags ─────────────────────────────────────────────────────────────────
 
-export function clearTransactions() {
-  try {
-    localStorage.removeItem(TRANSACTIONS_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
+/**
+ * Look up a QR tag by hash. Returns the tag object or null.
+ */
+export async function getQRTag(hash) {
+  console.log('[storage] getQRTag', hash);
+  const { data, error } = await supabase
+    .from('qr_tags')
+    .select('*')
+    .eq('hash', hash)
+    .maybeSingle();
 
-// ── QR Tags ───────────────────────────────────────────────────────────────────
-
-export function getQRTags() {
-  try {
-    const raw = localStorage.getItem(QRTAGS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveQRTag(hash, tag) {
-  try {
-    const tags = getQRTags();
-    tags[hash] = tag;
-    localStorage.setItem(QRTAGS_KEY, JSON.stringify(tags));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function incrementQRTagScan(hash) {
-  try {
-    const tags = getQRTags();
-    if (tags[hash]) {
-      tags[hash].timesScanned = (tags[hash].timesScanned || 0) + 1;
-      localStorage.setItem(QRTAGS_KEY, JSON.stringify(tags));
-    }
-  } catch {
-    // ignore
-  }
-}
-
-export function deleteQRTag(hash) {
-  try {
-    const tags = getQRTags();
-    delete tags[hash];
-    localStorage.setItem(QRTAGS_KEY, JSON.stringify(tags));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function clearQRTags() {
-  try {
-    localStorage.removeItem(QRTAGS_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ── Weekly Summary ────────────────────────────────────────────────────────────
-
-export function getLastSummaryDate() {
-  try {
-    return localStorage.getItem(LAST_SUMMARY_KEY) || null;
-  } catch {
+  if (error) {
+    console.error('[storage] getQRTag error:', error.message);
     return null;
   }
+  if (!data) {
+    console.log('[storage] getQRTag not found:', hash);
+    return null;
+  }
+  return dbRowToQRTag(data);
 }
 
-export function setLastSummaryDate(dateStr) {
-  try {
-    localStorage.setItem(LAST_SUMMARY_KEY, dateStr);
-  } catch {
-    // ignore
+/**
+ * Fetch all QR tags (for settings page) as an object keyed by hash.
+ */
+export async function getQRTags() {
+  console.log('[storage] getQRTags');
+  const { data, error } = await supabase
+    .from('qr_tags')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[storage] getQRTags error:', error.message);
+    return {};
+  }
+  return Object.fromEntries(data.map((row) => [row.hash, dbRowToQRTag(row)]));
+}
+
+/**
+ * Save a new QR tag. Returns the saved tag.
+ */
+export async function saveQRTag(hash, tag) {
+  console.log('[storage] saveQRTag', hash, tag);
+  const { data, error } = await supabase
+    .from('qr_tags')
+    .insert({
+      hash,
+      label: tag.label,
+      category_id: tag.categoryId,
+      times_scanned: 1,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[storage] saveQRTag error:', error.message);
+    throw error;
+  }
+  console.log('[storage] saveQRTag success:', data.id);
+  return dbRowToQRTag(data);
+}
+
+/**
+ * Increment the times_scanned counter for a QR tag.
+ */
+export async function incrementQRTagScan(hash) {
+  console.log('[storage] incrementQRTagScan', hash);
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from('qr_tags')
+    .select('id, times_scanned')
+    .eq('hash', hash)
+    .maybeSingle();
+
+  if (fetchErr || !existing) {
+    console.error('[storage] incrementQRTagScan fetch error:', fetchErr?.message);
+    return;
+  }
+
+  const { error } = await supabase
+    .from('qr_tags')
+    .update({ times_scanned: existing.times_scanned + 1 })
+    .eq('hash', hash);
+
+  if (error) {
+    console.error('[storage] incrementQRTagScan update error:', error.message);
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+/**
+ * Update a QR tag label / category (for settings page).
+ */
+export async function updateQRTag(hash, updates) {
+  console.log('[storage] updateQRTag', hash, updates);
+  const row = {};
+  if (updates.label !== undefined) row.label = updates.label;
+  if (updates.categoryId !== undefined) row.category_id = updates.categoryId;
 
-export function getUniqueFriendNames() {
-  const txs = getTransactions();
-  const names = new Set();
-  for (const tx of txs) {
-    if (tx.friendName) names.add(tx.friendName);
+  const { error } = await supabase.from('qr_tags').update(row).eq('hash', hash);
+  if (error) {
+    console.error('[storage] updateQRTag error:', error.message);
+    throw error;
   }
-  return Array.from(names);
 }
 
-export function getFriendBalance(name) {
-  const txs = getTransactions().filter(t => t.friendName === name);
-  let balance = 0;
-  for (const tx of txs) {
-    if (tx.type === 'friend_received') balance += tx.amount;
-    else if (tx.type === 'friend_gave') balance -= tx.amount;
-    else if (tx.type === 'settlement') {
-      // settlements self-correct the balance
+/**
+ * Delete a QR tag by hash.
+ */
+export async function deleteQRTag(hash) {
+  console.log('[storage] deleteQRTag', hash);
+  const { error } = await supabase.from('qr_tags').delete().eq('hash', hash);
+  if (error) {
+    console.error('[storage] deleteQRTag error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Delete all QR tags.
+ */
+export async function clearQRTags() {
+  console.log('[storage] clearQRTags');
+  const { error } = await supabase.from('qr_tags').delete().not('id', 'is', null);
+  if (error) {
+    console.error('[storage] clearQRTags error:', error.message);
+    throw error;
+  }
+}
+
+// ─── Dashboard statistics ─────────────────────────────────────────────────────
+
+/**
+ * Returns dashboard stats: spentThisWeek, cashThisMonth, onlineThisMonth, friendsOweYou
+ */
+export async function getDashboardStats() {
+  console.log('[storage] getDashboardStats');
+
+  const now = new Date();
+
+  // Week boundaries: Monday 00:00
+  const dayOfWeek = now.getDay();
+  const diffToMon = (dayOfWeek + 6) % 7;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - diffToMon);
+  weekStart.setHours(0, 0, 0, 0);
+
+  // Month boundaries
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('type, amount, subcategory, friend_name, date')
+    .gte('date', monthStart.toISOString());
+
+  if (error) {
+    console.error('[storage] getDashboardStats error:', error.message);
+    return { spentThisWeek: 0, cashThisMonth: 0, onlineThisMonth: 0, friendsOweYou: 0 };
+  }
+
+  let spentThisWeek = 0;
+  let cashThisMonth = 0;
+  let onlineThisMonth = 0;
+  const friendBalances = {};
+
+  for (const row of data) {
+    const rowDate = new Date(row.date);
+    const amount = parseFloat(row.amount);
+
+    if (row.type === 'expense') {
+      if (rowDate >= weekStart) spentThisWeek += amount;
+      if (row.subcategory === 'cash') cashThisMonth += amount;
+      if (['fampay', 'phonepe', 'online'].includes(row.subcategory)) onlineThisMonth += amount;
+    }
+
+    if (row.type === 'friend_received' && row.friend_name) {
+      friendBalances[row.friend_name] = (friendBalances[row.friend_name] || 0) + amount;
+    }
+    if (row.type === 'friend_gave' && row.friend_name) {
+      friendBalances[row.friend_name] = (friendBalances[row.friend_name] || 0) - amount;
+    }
+    if (row.type === 'settlement' && row.friend_name) {
+      friendBalances[row.friend_name] = (friendBalances[row.friend_name] || 0) + amount;
     }
   }
-  return balance;
+
+  const friendsOweYou = Object.values(friendBalances)
+    .filter((b) => b > 0)
+    .reduce((sum, b) => sum + b, 0);
+
+  return {
+    spentThisWeek: Math.round(spentThisWeek),
+    cashThisMonth: Math.round(cashThisMonth),
+    onlineThisMonth: Math.round(onlineThisMonth),
+    friendsOweYou: Math.round(friendsOweYou),
+  };
 }
+
+// ─── Friends ──────────────────────────────────────────────────────────────────
+
+export async function getUniqueFriendNames() {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('friend_name')
+    .not('friend_name', 'is', null);
+
+  if (error) {
+    console.error('[storage] getUniqueFriendNames error:', error.message);
+    return [];
+  }
+  return [...new Set(data.map((r) => r.friend_name).filter(Boolean))];
+}
+
+export async function getFriendBalance(name) {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('type, amount')
+    .eq('friend_name', name);
+
+  if (error) {
+    console.error('[storage] getFriendBalance error:', error.message);
+    return 0;
+  }
+
+  return data.reduce((sum, row) => {
+    const amount = parseFloat(row.amount);
+    if (row.type === 'friend_received') return sum + amount;
+    if (row.type === 'friend_gave') return sum - amount;
+    if (row.type === 'settlement') return sum + amount;
+    return sum;
+  }, 0);
+}
+
+// ─── Weekly Summary (localStorage for summary text only) ─────────────────────
+
+const LS_SUMMARY_DATE = 'pp_last_summary_date';
 
 export function getWeekRange() {
   const now = new Date();
@@ -163,10 +346,65 @@ export function getWeekRange() {
   return { start: monday, end: sunday };
 }
 
+export function getLastSummaryDate() {
+  return localStorage.getItem(LS_SUMMARY_DATE) || null;
+}
+
+export function setLastSummaryDate(dateStr) {
+  localStorage.setItem(LS_SUMMARY_DATE, dateStr);
+}
+
 export function isSummaryGeneratedThisWeek() {
   const lastDate = getLastSummaryDate();
   if (!lastDate) return false;
   const last = new Date(lastDate);
   const { start } = getWeekRange();
   return last >= start;
+}
+
+// ─── Row mappers ──────────────────────────────────────────────────────────────
+
+function txToDbRow(tx) {
+  const row = {
+    type: tx.type,
+    amount: tx.amount,
+    category: tx.category,
+    subcategory: tx.subcategory,
+    description: tx.description,
+    date: tx.date,
+    friend_name: tx.friendName || null,
+    source: tx.source,
+    qr_id: tx.qrId || null,
+  };
+  // Only include id if it's a proper UUID already assigned by the server
+  if (tx.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tx.id)) {
+    row.id = tx.id;
+  }
+  return row;
+}
+
+function dbRowToTx(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    amount: parseFloat(row.amount),
+    category: row.category,
+    subcategory: row.subcategory,
+    description: row.description,
+    date: row.date,
+    friendName: row.friend_name || null,
+    source: row.source,
+    qrId: row.qr_id || null,
+    createdAt: row.created_at,
+  };
+}
+
+function dbRowToQRTag(row) {
+  return {
+    id: row.id,
+    hash: row.hash,
+    label: row.label,
+    categoryId: row.category_id,
+    timesScanned: row.times_scanned,
+  };
 }

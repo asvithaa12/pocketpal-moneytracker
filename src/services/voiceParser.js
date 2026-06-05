@@ -1,5 +1,8 @@
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
 
+const VALID_CATEGORIES = new Set(['food', 'education', 'transport', 'entertainment', 'clothing', 'health', 'friend_gave', 'other']);
+const VALID_SUBCATEGORIES = new Set(['cash', 'fampay', 'phonepe', 'online']);
+
 const SYSTEM_PROMPT = `You are a transaction parser for an Indian student expense tracker.
 Extract these fields from the user's spoken input:
 - amount: number in INR (just the number, no symbol)
@@ -18,38 +21,126 @@ fampay / fam pay → subcategory: fampay
 phonepe / phone pe / gpay / google pay / upi → subcategory: phonepe
 online / swiggy / zomato / amazon / flipkart / myntra → subcategory: online
 
-Return ONLY a single valid JSON object. No markdown. No explanation. No backticks.
-If you cannot parse: return { "error": "could not parse" }`;
+Return ONLY a valid JSON object on a single line. No markdown fences. No explanation. No extra text.
+Example: {"amount":80,"category":"food","subcategory":"cash","description":"canteen lunch","friendName":null}
+If you cannot parse at all: {"error":"could not parse"}`;
 
+/**
+ * Extract JSON from Gemini response text that may contain markdown or extra prose.
+ */
+function extractJSON(text) {
+  if (!text) return null;
+
+  // Strip markdown code fences
+  let cleaned = text
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Try direct parse first
+  try {
+    return JSON.parse(cleaned);
+  } catch (_) {
+    // fall through
+  }
+
+  // Find the first {...} block
+  const match = cleaned.match(/\{[\s\S]*?\}/);
+  if (match) {
+    try {
+      return JSON.parse(match[0]);
+    } catch (_) {
+      // fall through
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Validate and normalise a parsed voice result.
+ * Returns { valid: true, data } or { valid: false, reason }
+ */
+function validateVoiceResult(parsed) {
+  if (!parsed || typeof parsed !== 'object') {
+    return { valid: false, reason: 'Empty response from AI' };
+  }
+  if (parsed.error) {
+    return { valid: false, reason: `AI could not parse: ${parsed.error}` };
+  }
+
+  const amount = parseFloat(parsed.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { valid: false, reason: 'Amount missing or zero — please speak the amount clearly' };
+  }
+
+  const category = VALID_CATEGORIES.has(parsed.category) ? parsed.category : 'other';
+  const subcategory = VALID_SUBCATEGORIES.has(parsed.subcategory) ? parsed.subcategory : 'cash';
+  const description = typeof parsed.description === 'string' && parsed.description.trim()
+    ? parsed.description.trim()
+    : '';
+  const friendName = category === 'friend_gave' && typeof parsed.friendName === 'string' && parsed.friendName.trim()
+    ? parsed.friendName.trim()
+    : null;
+
+  return {
+    valid: true,
+    data: { amount, category, subcategory, description, friendName },
+  };
+}
+
+/**
+ * Parse a voice transcript using Gemini.
+ * Returns { parsed: {...} } on success or { error: 'message' } on failure.
+ */
 export async function parseVoiceTranscript(transcript) {
   const key = import.meta.env.VITE_GEMINI_KEY;
-  if (!key) throw new Error('VITE_GEMINI_KEY not set');
+  if (!key) {
+    console.error('[voiceParser] VITE_GEMINI_KEY not set');
+    return { error: 'Gemini API key not configured' };
+  }
 
-  const response = await fetch(`${GEMINI_URL}?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: `${SYSTEM_PROMPT}\n\nUser input: "${transcript}"`
-        }]
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 256 }
-    })
-  });
+  console.log('[voiceParser] request transcript:', transcript);
+
+  let response;
+  try {
+    response = await fetch(`${GEMINI_URL}?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUser input: "${transcript}"` }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 256 },
+      }),
+    });
+  } catch (networkErr) {
+    console.error('[voiceParser] network error:', networkErr);
+    return { error: 'Network error — check your connection' };
+  }
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
+    const errBody = await response.text().catch(() => '');
+    console.error('[voiceParser] Gemini HTTP error:', response.status, errBody);
+    return { error: `Gemini API error (${response.status})` };
   }
 
   const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('[voiceParser] raw response:', JSON.stringify(data));
 
-  try {
-    const cleaned = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    console.error('Failed to parse Gemini voice response:', text);
-    return { error: 'could not parse' };
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('[voiceParser] extracted text:', rawText);
+
+  const parsed = extractJSON(rawText);
+  if (!parsed) {
+    console.error('[voiceParser] JSON extraction failed from:', rawText);
+    return { error: 'Could not extract data from AI response' };
   }
+
+  const validation = validateVoiceResult(parsed);
+  if (!validation.valid) {
+    console.warn('[voiceParser] validation failed:', validation.reason);
+    return { error: validation.reason };
+  }
+
+  console.log('[voiceParser] parsed result:', validation.data);
+  return { parsed: validation.data };
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -8,11 +8,14 @@ import { TrendingDown, Wallet, Wifi, Users, Sparkles, ChevronDown, Loader2, Refr
 import StatCard from '../components/StatCard';
 import TransactionRow from '../components/TransactionRow';
 import {
-  getTransactions, getWeekRange, getFriendBalance,
-  isSummaryGeneratedThisWeek, setLastSummaryDate
+  getTransactions,
+  getDashboardStats,
+  getWeekRange,
+  isSummaryGeneratedThisWeek,
+  setLastSummaryDate,
 } from '../services/storage';
 import { generateWeeklySummary } from '../services/weeklySummary';
-import { CATEGORIES, getCategoryById } from '../data/categories';
+import { getCategoryById } from '../data/categories';
 
 function getMonthOptions() {
   const options = [];
@@ -21,22 +24,10 @@ function getMonthOptions() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     options.push({
       value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+      label: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
     });
   }
   return options;
-}
-
-function isThisWeek(dateStr) {
-  const { start, end } = getWeekRange();
-  const d = new Date(dateStr);
-  return d >= start && d <= end;
-}
-
-function isThisMonth(dateStr) {
-  const now = new Date();
-  const d = new Date(dateStr);
-  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
 function isInMonth(dateStr, monthStr) {
@@ -45,57 +36,82 @@ function isInMonth(dateStr, monthStr) {
   return d.getFullYear() === year && d.getMonth() + 1 === month;
 }
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
+  const [stats, setStats] = useState({
+    spentThisWeek: 0,
+    cashThisMonth: 0,
+    onlineThisMonth: 0,
+    friendsOweYou: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingTxs, setLoadingTxs] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(getMonthOptions()[0].value);
   const [summary, setSummary] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('pp_summary_text') || 'null'); } catch { return null; }
+    try {
+      return JSON.parse(localStorage.getItem('pp_summary_text') || 'null');
+    } catch {
+      return null;
+    }
   });
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState('');
   const monthOptions = getMonthOptions();
 
-  useEffect(() => {
-    setTransactions(getTransactions());
+  const loadData = useCallback(async () => {
+    console.log('[Home] loadData');
+    setLoadingStats(true);
+    setLoadingTxs(true);
+    try {
+      const [txs, s] = await Promise.all([getTransactions(), getDashboardStats()]);
+      setTransactions(txs);
+      setStats(s);
+    } catch (err) {
+      console.error('[Home] loadData error:', err);
+    } finally {
+      setLoadingStats(false);
+      setLoadingTxs(false);
+    }
   }, []);
 
-  // Stat card calculations
-  const weekExpenses = transactions.filter(t => t.type === 'expense' && isThisWeek(t.date));
-  const spentThisWeek = weekExpenses.reduce((s, t) => s + t.amount, 0);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const cashThisMonth = transactions
-    .filter(t => t.type === 'expense' && t.subcategory === 'cash' && isThisMonth(t.date))
-    .reduce((s, t) => s + t.amount, 0);
+  // Chart data — derived from full transactions list for selected month
+  const monthExpenses = transactions.filter(
+    (t) => t.type === 'expense' && isInMonth(t.date, selectedMonth)
+  );
 
-  const onlineThisMonth = transactions
-    .filter(t => t.type === 'expense' && ['fampay', 'phonepe', 'online'].includes(t.subcategory) && isThisMonth(t.date))
-    .reduce((s, t) => s + t.amount, 0);
-
-  // Friends balance
-  const friendNames = [...new Set(transactions.filter(t => t.friendName).map(t => t.friendName))];
-  const friendsOweTotal = friendNames.reduce((sum, name) => {
-    const b = getFriendBalance(name);
-    return sum + (b > 0 ? b : 0);
-  }, 0);
-
-  // Chart data
-  const monthExpenses = transactions.filter(t => t.type === 'expense' && isInMonth(t.date, selectedMonth));
   const catTotals = {};
   for (const tx of monthExpenses) {
     catTotals[tx.category] = (catTotals[tx.category] || 0) + tx.amount;
   }
   const pieData = Object.entries(catTotals)
     .map(([id, value]) => ({ name: getCategoryById(id).label, value, color: getCategoryById(id).color }))
-    .filter(d => d.value > 0)
+    .filter((d) => d.value > 0)
     .sort((a, b) => b.value - a.value);
 
   const barData = [
-    { name: 'Cash', amount: monthExpenses.filter(t => t.subcategory === 'cash').reduce((s, t) => s + t.amount, 0), fill: '#22C55E' },
-    { name: 'FamPay', amount: monthExpenses.filter(t => t.subcategory === 'fampay').reduce((s, t) => s + t.amount, 0), fill: '#F59E0B' },
-    { name: 'PhonePe', amount: monthExpenses.filter(t => t.subcategory === 'phonepe').reduce((s, t) => s + t.amount, 0), fill: '#3B82F6' },
-    { name: 'Online', amount: monthExpenses.filter(t => t.subcategory === 'online').reduce((s, t) => s + t.amount, 0), fill: '#8B5CF6' },
+    { name: 'Cash', amount: monthExpenses.filter((t) => t.subcategory === 'cash').reduce((s, t) => s + t.amount, 0), fill: '#556B2F' },
+    { name: 'FamPay', amount: monthExpenses.filter((t) => t.subcategory === 'fampay').reduce((s, t) => s + t.amount, 0), fill: '#D4AF37' },
+    { name: 'PhonePe', amount: monthExpenses.filter((t) => t.subcategory === 'phonepe').reduce((s, t) => s + t.amount, 0), fill: '#3B82F6' },
+    { name: 'Online', amount: monthExpenses.filter((t) => t.subcategory === 'online').reduce((s, t) => s + t.amount, 0), fill: '#8B5CF6' },
   ];
+
+  // Weekly expenses for AI summary
+  const { start: weekStart, end: weekEnd } = getWeekRange();
+  const weekExpenses = transactions.filter(
+    (t) => t.type === 'expense' && new Date(t.date) >= weekStart && new Date(t.date) <= weekEnd
+  );
 
   const handleGenerateSummary = async () => {
     setGeneratingSummary(true);
@@ -133,21 +149,21 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-3 mb-6">
           <StatCard
             label="Spent this week"
-            value={`₹${spentThisWeek.toLocaleString('en-IN')}`}
+            value={loadingStats ? '…' : `₹${stats.spentThisWeek.toLocaleString('en-IN')}`}
             icon={TrendingDown}
             color="#EF4444"
             bg="#FEF2F2"
           />
           <StatCard
             label="Cash this month"
-            value={`₹${cashThisMonth.toLocaleString('en-IN')}`}
+            value={loadingStats ? '…' : `₹${stats.cashThisMonth.toLocaleString('en-IN')}`}
             icon={Wallet}
             color="#556B2F"
             bg="#F8F7F2"
           />
           <StatCard
             label="Online / UPI"
-            value={`₹${onlineThisMonth.toLocaleString('en-IN')}`}
+            value={loadingStats ? '…' : `₹${stats.onlineThisMonth.toLocaleString('en-IN')}`}
             sub="this month"
             icon={Wifi}
             color="#3B82F6"
@@ -155,7 +171,7 @@ export default function Home() {
           />
           <StatCard
             label="Friends owe you"
-            value={`₹${friendsOweTotal.toLocaleString('en-IN')}`}
+            value={loadingStats ? '…' : `₹${stats.friendsOweYou.toLocaleString('en-IN')}`}
             icon={Users}
             color="#22C55E"
             bg="#F0FDF4"
@@ -165,7 +181,7 @@ export default function Home() {
         {/* Recent Transactions */}
         <div className="bg-white rounded-card border border-[#E2E8F0] mb-6 overflow-hidden">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-[#0F172A]">Recent transactions</h2>
+            <h2 className="text-sm font-semibold text-[#1F2937]">Recent transactions</h2>
             <button
               onClick={() => navigate('/transactions')}
               className="text-xs text-[#556B2F] font-medium"
@@ -174,20 +190,22 @@ export default function Home() {
             </button>
           </div>
           <div className="divide-y divide-[#E2E8F0]">
-            {recent.length === 0 ? (
+            {loadingTxs ? (
+              <div className="flex justify-center py-8">
+                <Loader2 size={20} className="animate-spin text-[#94A3B8]" />
+              </div>
+            ) : recent.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <p className="text-sm text-[#94A3B8]">No transactions yet</p>
                 <button
                   onClick={() => navigate('/add')}
-                  className="mt-2 text-sm text-[#14B8A6] font-medium"
+                  className="mt-2 text-sm text-[#556B2F] font-medium"
                 >
                   Add your first expense →
                 </button>
               </div>
             ) : (
-              recent.map(tx => (
-                <TransactionRow key={tx.id} tx={tx} />
-              ))
+              recent.map((tx) => <TransactionRow key={tx.id} tx={tx} />)
             )}
           </div>
         </div>
@@ -195,22 +213,28 @@ export default function Home() {
         {/* Charts */}
         <div className="bg-white rounded-card border border-[#E2E8F0] mb-6 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[#0F172A]">Spending breakdown</h2>
+            <h2 className="text-sm font-semibold text-[#1F2937]">Spending breakdown</h2>
             <div className="relative">
               <select
                 value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-                className="appearance-none text-xs border border-[#E2E8F0] rounded-btn px-3 py-1.5 pr-7 bg-[#F1F5F9] text-[#334155] focus:outline-none focus:border-[#22C55E]"
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="appearance-none text-xs border border-[#E2E8F0] rounded-btn px-3 py-1.5 pr-7 bg-[#F8F7F2] text-[#1F2937] focus:outline-none focus:border-[#D4AF37]"
               >
-                {monthOptions.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                {monthOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
               </select>
               <ChevronDown size={12} className="absolute right-2 top-2 text-[#94A3B8] pointer-events-none" />
             </div>
           </div>
 
-          {pieData.length === 0 ? (
+          {loadingTxs ? (
+            <div className="flex justify-center py-8">
+              <Loader2 size={20} className="animate-spin text-[#94A3B8]" />
+            </div>
+          ) : pieData.length === 0 ? (
             <p className="text-center text-sm text-[#94A3B8] py-6">No expenses for this month</p>
           ) : (
             <>
@@ -248,7 +272,7 @@ export default function Home() {
         <div className="bg-white rounded-card border border-[#E2E8F0] mb-6 overflow-hidden">
           <div className="px-4 pt-4 pb-3 border-b border-[#E2E8F0] flex items-center gap-2">
             <Sparkles size={16} className="text-[#8B5CF6]" />
-            <h2 className="text-sm font-semibold text-[#0F172A]">AI weekly roast</h2>
+            <h2 className="text-sm font-semibold text-[#1F2937]">AI weekly roast</h2>
           </div>
 
           {summary ? (
@@ -273,22 +297,31 @@ export default function Home() {
           ) : (
             <div className="p-4">
               {weekExpenses.length === 0 ? (
-                <p className="text-sm text-[#94A3B8] text-center py-2">Add some expenses this week first</p>
+                <p className="text-sm text-[#94A3B8] text-center py-2">
+                  Add some expenses this week first
+                </p>
               ) : (
                 <>
                   <p className="text-xs text-[#94A3B8] mb-3">
-                    Get a funny AI summary of your {weekExpenses.length} expense{weekExpenses.length > 1 ? 's' : ''} this week
+                    Get a funny AI summary of your {weekExpenses.length} expense
+                    {weekExpenses.length > 1 ? 's' : ''} this week
                   </p>
-                  {summaryError && <p className="text-xs text-red-500 mb-2">{summaryError}</p>}
+                  {summaryError && (
+                    <p className="text-xs text-red-500 mb-2">{summaryError}</p>
+                  )}
                   <button
                     onClick={handleGenerateSummary}
                     disabled={generatingSummary || alreadyGenerated}
                     className="flex items-center gap-2 bg-[#5B21B6] text-white px-4 py-2 rounded-btn text-sm font-medium disabled:opacity-50 transition-opacity"
                   >
                     {generatingSummary ? (
-                      <><Loader2 size={14} className="animate-spin" /> Generating…</>
+                      <>
+                        <Loader2 size={14} className="animate-spin" /> Generating…
+                      </>
                     ) : (
-                      <><Sparkles size={14} /> Generate summary</>
+                      <>
+                        <Sparkles size={14} /> Generate summary
+                      </>
                     )}
                   </button>
                   {alreadyGenerated && !summaryError && (
@@ -302,11 +335,4 @@ export default function Home() {
       </div>
     </div>
   );
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
 }

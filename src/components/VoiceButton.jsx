@@ -34,16 +34,17 @@ export default function VoiceButton({ onResult, onError }) {
       setTranscript(raw);
       setState('processing');
       try {
-        const parsed = await parseVoiceTranscript(raw);
+        const result = await parseVoiceTranscript(raw);
         setState('idle');
-        if (parsed?.error) {
-          onResult?.({ raw });
+        if (result.error) {
+          // Pass both raw and error so caller can show error + fallback to manual
+          onResult?.({ raw, error: result.error });
         } else {
-          onResult?.({ raw, parsed });
+          onResult?.({ raw, parsed: result.parsed });
         }
-      } catch {
+      } catch (err) {
         setState('idle');
-        onResult?.({ raw });
+        onResult?.({ raw, error: err.message || 'Parsing failed' });
       }
     };
 
