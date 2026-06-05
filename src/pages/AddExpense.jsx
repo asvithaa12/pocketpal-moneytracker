@@ -279,30 +279,40 @@ export default function AddExpense() {
   };
 
   const inputClass = (field) =>
-    `w-full border rounded-btn px-3 py-3 text-sm bg-[#F8F7F2] text-[#1F2937] focus:outline-none transition-all ${
+    `w-full border rounded-btn px-4 py-3 text-[13px] bg-[#F8F7F2] text-[#1F2937] focus:outline-none transition-all ${
       aiFields.has(field) ? 'ai-filled' : 'border-[#E2E8F0] focus:border-[#D4AF37]'
     }`;
 
   return (
-    <div className="min-h-screen bg-[#F8F7F2] pb-28">
+    <div className="min-h-screen bg-[#F5F4EF] pb-28 page-enter">
       {/* Header */}
-      <div className="bg-[#556B2F] px-4 pt-12 pb-6">
-        <h1 className="text-white text-xl font-bold">Add Expense</h1>
-        <p className="text-[#B8C37E] text-sm mt-1">Voice, screenshot, or manual</p>
+      <div
+        className="px-5 pt-14 pb-8 relative overflow-hidden"
+        style={{ background: 'linear-gradient(150deg, #4A5E28 0%, #556B2F 50%, #3D4A20 100%)' }}
+      >
+        <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-[0.06]"
+          style={{ background: '#D4AF37', transform: 'translate(30%, -30%)' }} />
+        <h1 className="text-white text-[24px] font-bold tracking-tight relative z-10">Add Expense</h1>
+        <p className="text-[#8BAD5C] text-[13px] mt-1 relative z-10">Voice, screenshot, or manual</p>
       </div>
 
       <div className="px-4 mt-4">
-        {/* Tabs */}
-        <div className="flex bg-white rounded-card border border-[#E2E8F0] p-1 mb-6 gap-1">
+        {/* Segmented Control Tabs */}
+        <div
+          className="flex bg-white rounded-card p-1 mb-5 gap-1"
+          style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}
+        >
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-btn text-sm font-medium transition-colors ${
-                activeTab === id ? 'bg-[#556B2F] text-white' : 'text-[#94A3B8] hover:text-[#4B5563]'
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-semibold transition-all duration-200 ${
+                activeTab === id
+                  ? 'bg-[#556B2F] text-white shadow-sm'
+                  : 'text-[#94A3B8] hover:text-[#556B2F]'
               }`}
             >
-              <Icon size={15} />
+              <Icon size={14} strokeWidth={activeTab === id ? 2.5 : 1.8} />
               {label}
             </button>
           ))}
@@ -310,47 +320,67 @@ export default function AddExpense() {
 
         {/* Voice Tab */}
         {activeTab === 'voice' && (
-          <div className="bg-white rounded-card border border-[#E2E8F0] p-6 mb-4">
-            <p className="text-sm text-[#4B5563] text-center mb-6">
-              Speak naturally —{' '}
-              <span className="font-medium text-[#556B2F]">"spent 80 on canteen"</span>
-            </p>
-            <div className="flex justify-center mb-4">
-              <VoiceButton
-                onResult={handleVoiceResult}
-                onError={(msg) => show(msg, 'error')}
-              />
+          <div className="space-y-3">
+            <div
+              className="bg-white rounded-card p-6 mb-0"
+              style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+            >
+              <p className="text-[13px] text-[#4B5563] text-center mb-6 leading-relaxed">
+                Speak naturally —{' '}
+                <span className="font-semibold text-[#556B2F]">"spent 80 on canteen"</span>
+              </p>
+              <div className="flex justify-center mb-5">
+                <VoiceButton
+                  onResult={handleVoiceResult}
+                  onError={(msg) => show(msg, 'error')}
+                />
+              </div>
+              <p className="text-[11.5px] text-[#94A3B8] text-center leading-relaxed">
+                Try: "gave 200 to Rahul cash" · "50 auto PhonePe"
+              </p>
             </div>
-            <p className="text-xs text-[#94A3B8] text-center">
-              Also: "gave 200 to Rahul cash" · "50 auto PhonePe"
-            </p>
 
-            {/* QR Scan Button */}
-            <div className="mt-6 pt-6 border-t border-[#E2E8F0] flex justify-center">
-              <button
-                onClick={() => setShowQR(true)}
-                className="flex items-center gap-2 border border-[#556B2F] text-[#556B2F] px-5 py-2.5 rounded-btn text-sm font-medium hover:bg-[#F8F7F2] transition-colors"
-              >
-                <Camera size={16} />
-                Scan QR code
-              </button>
+            {/* QR Scan — dedicated feature card */}
+            <div
+              className="bg-white rounded-card p-4"
+              style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#EDF2E4] flex items-center justify-center">
+                    <Camera size={18} className="text-[#556B2F]" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-[#1F2937]">Scan QR code</p>
+                    <p className="text-[11px] text-[#94A3B8] mt-0.5">Auto-fill from saved tags</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowQR(true)}
+                  className="px-4 py-2 bg-[#556B2F] text-white text-[12px] font-semibold rounded-pill active:scale-95 transition-transform"
+                >
+                  Scan
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Screenshot Tab */}
         {activeTab === 'screenshot' && (
-          <div className="bg-white rounded-card border border-[#E2E8F0] p-4 mb-4">
+          <div className="bg-white rounded-card p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             {!imgPreview ? (
               <div
                 onClick={() => fileRef.current?.click()}
-                className="border-2 border-dashed border-[#E2E8F0] rounded-btn p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-[#D4AF37] transition-colors"
+                className="border-2 border-dashed border-[#E2E8F0] rounded-xl p-10 flex flex-col items-center gap-3 cursor-pointer hover:border-[#D4AF37] transition-colors"
               >
-                <div className="w-12 h-12 bg-[#F8F7F2] rounded-full flex items-center justify-center">
-                  <Image size={24} className="text-[#556B2F]" />
+                <div className="w-14 h-14 bg-[#EDF2E4] rounded-2xl flex items-center justify-center">
+                  <Image size={26} className="text-[#556B2F]" />
                 </div>
-                <p className="text-sm font-medium text-[#4B5563]">Tap to select a screenshot</p>
-                <p className="text-xs text-[#94A3B8]">FamPay or PhonePe transaction history</p>
+                <div className="text-center">
+                  <p className="text-[13px] font-semibold text-[#4B5563]">Tap to select a screenshot</p>
+                  <p className="text-[11.5px] text-[#94A3B8] mt-0.5">FamPay or PhonePe transaction history</p>
+                </div>
                 <input
                   ref={fileRef}
                   type="file"
@@ -364,16 +394,16 @@ export default function AddExpense() {
                 <div className="flex items-start gap-3 mb-4">
                   <img
                     src={imgPreview}
-                    className="w-20 h-20 object-cover rounded-btn border border-[#E2E8F0]"
+                    className="w-20 h-20 object-cover rounded-xl border border-[#E2E8F0]"
                     alt="preview"
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-[#1F2937] mb-2">Screenshot selected</p>
+                    <p className="text-[13px] font-semibold text-[#1F2937] mb-2">Screenshot selected</p>
                     <div className="flex gap-2">
                       <button
                         onClick={handleParseScreenshot}
                         disabled={parsing}
-                        className="flex items-center gap-1.5 bg-[#556B2F] text-white px-3 py-2 rounded-btn text-xs font-medium disabled:opacity-60"
+                        className="flex items-center gap-1.5 bg-[#556B2F] text-white px-3 py-2 rounded-btn text-[12px] font-semibold disabled:opacity-60 active:scale-95 transition-transform"
                       >
                         {parsing ? (
                           <Loader2 size={12} className="animate-spin" />
@@ -389,7 +419,7 @@ export default function AddExpense() {
                           setImportItems([]);
                           setChecked([]);
                         }}
-                        className="border border-[#E2E8F0] text-[#94A3B8] px-3 py-2 rounded-btn text-xs"
+                        className="border border-[#E2E8F0] text-[#94A3B8] px-3 py-2 rounded-btn text-[12px] font-medium"
                       >
                         Clear
                       </button>
@@ -399,12 +429,12 @@ export default function AddExpense() {
 
                 {importItems.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">
+                    <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">
                       Found {importItems.length} transaction{importItems.length > 1 ? 's' : ''}
                     </p>
                     <div className="space-y-2 mb-4">
                       {importItems.map((item, i) => (
-                        <div key={i} className="flex items-center gap-2 p-3 bg-[#F8F7F2] rounded-btn border border-[#E2E8F0]">
+                        <div key={i} className="flex items-center gap-2 p-3 bg-[#F8F7F2] rounded-xl border border-[#EAECF0]">
                           <input
                             type="checkbox"
                             checked={checked.includes(i)}
@@ -416,19 +446,19 @@ export default function AddExpense() {
                             className="w-4 h-4 accent-[#556B2F]"
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[#1F2937] truncate">
+                            <p className="text-[13px] font-semibold text-[#1F2937] truncate">
                               {item.merchant}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span
-                                className={`text-xs font-mono-nums font-semibold ${
+                                className={`text-[12px] font-mono-nums font-bold ${
                                   item.type === 'credit' ? 'text-[#22C55E]' : 'text-[#EF4444]'
                                 }`}
                               >
                                 {item.type === 'credit' ? '+' : '−'}₹{item.amount}
                               </span>
                               {item.date && (
-                                <span className="text-xs text-[#94A3B8]">{item.date}</span>
+                                <span className="text-[11px] text-[#94A3B8]">{item.date}</span>
                               )}
                             </div>
                           </div>
@@ -439,7 +469,7 @@ export default function AddExpense() {
                               copy[i] = { ...copy[i], categoryGuess: e.target.value };
                               setImportItems(copy);
                             }}
-                            className="text-xs border border-[#E2E8F0] rounded-btn px-2 py-1 bg-white"
+                            className="text-[11px] border border-[#E2E8F0] rounded-btn px-2 py-1 bg-white"
                           >
                             {CATEGORIES.filter((c) => c.id !== 'friend_gave').map((c) => (
                               <option key={c.id} value={c.id}>
@@ -453,7 +483,7 @@ export default function AddExpense() {
                     <button
                       onClick={handleImportSelected}
                       disabled={checked.length === 0 || saving}
-                      className="w-full bg-[#556B2F] text-white py-3 rounded-btn font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full bg-[#556B2F] text-white py-3.5 rounded-btn font-semibold text-[13px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
                     >
                       {saving ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -471,19 +501,19 @@ export default function AddExpense() {
 
         {/* Manual Form */}
         {activeTab === 'manual' && (
-          <div className="bg-white rounded-card border border-[#E2E8F0] p-4 mb-4">
+          <div className="bg-white rounded-card p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             {aiFields.size > 0 && (
-              <div className="flex items-center gap-2 bg-[#F8F7F2] border border-[#D4AF37] rounded-btn p-3 mb-4">
-                <div className="w-2 h-2 bg-[#D4AF37] rounded-full" />
-                <p className="text-xs text-[#556B2F] font-medium">
-                  AI-filled fields highlighted in gold — review before saving
+              <div className="flex items-center gap-2.5 bg-[#F0FDF4] border border-[#A7F3D0] rounded-xl p-3 mb-5">
+                <div className="w-2 h-2 bg-[#22C55E] rounded-full flex-shrink-0" />
+                <p className="text-[12px] text-[#166534] font-semibold">
+                  AI-filled fields highlighted — review before saving
                 </p>
               </div>
             )}
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide block mb-1.5">
+                <label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block mb-2">
                   Amount (₹)
                 </label>
                 <input
@@ -492,14 +522,14 @@ export default function AddExpense() {
                   value={form.amount}
                   onChange={(e) => setField('amount', e.target.value)}
                   className={inputClass('amount')}
-                  style={{ fontSize: 20, fontFamily: 'JetBrains Mono, monospace' }}
+                  style={{ fontSize: 22, fontFamily: 'JetBrains Mono, monospace', fontWeight: 700 }}
                   inputMode="numeric"
                   min="0"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide block mb-1.5">
+                <label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block mb-2">
                   Description
                 </label>
                 <input
@@ -512,7 +542,7 @@ export default function AddExpense() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide block mb-1.5">
+                <label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block mb-2">
                   Category
                 </label>
                 <select
@@ -530,7 +560,7 @@ export default function AddExpense() {
 
               {form.category === 'friend_gave' && (
                 <div>
-                  <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide block mb-1.5">
+                  <label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block mb-2">
                     Friend's name
                   </label>
                   <input
@@ -544,7 +574,7 @@ export default function AddExpense() {
               )}
 
               <div>
-                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide block mb-1.5">
+                <label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block mb-2">
                   Payment mode
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -552,10 +582,10 @@ export default function AddExpense() {
                     <button
                       key={m.id}
                       onClick={() => setField('subcategory', m.id)}
-                      className={`py-2.5 rounded-btn text-sm font-medium transition-colors border ${
+                      className={`py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 border ${
                         form.subcategory === m.id
-                          ? 'border-[#556B2F] bg-[#F8F7F2] text-[#556B2F]'
-                          : 'border-[#E2E8F0] text-[#4B5563]'
+                          ? 'border-[#556B2F] bg-[#EDF2E4] text-[#3D4A20] shadow-sm'
+                          : 'border-[#EAECF0] text-[#4B5563] hover:border-[#C8D6B0]'
                       }`}
                     >
                       {m.label}
@@ -565,7 +595,7 @@ export default function AddExpense() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide block mb-1.5">
+                <label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider block mb-2">
                   Date &amp; time
                 </label>
                 <input
@@ -580,9 +610,9 @@ export default function AddExpense() {
             <button
               onClick={handleSave}
               disabled={saving || !form.amount || !form.description}
-              className="mt-6 w-full bg-[#556B2F] text-white py-3.5 rounded-btn font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+              className="mt-6 w-full bg-[#556B2F] text-white py-4 rounded-btn font-bold text-[14px] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm"
             >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} strokeWidth={2.5} />}
               Save expense
             </button>
           </div>
@@ -595,9 +625,10 @@ export default function AddExpense() {
       {/* QR Name Modal */}
       {qrModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-          <div className="bg-white w-full max-w-md rounded-t-2xl p-6 sheet-enter">
-            <h3 className="text-base font-bold text-[#1F2937] mb-1">Name this QR code</h3>
-            <p className="text-xs text-[#94A3B8] mb-4 font-mono-nums truncate">
+          <div className="bg-white w-full max-w-md rounded-t-[20px] p-6 pb-8 sheet-enter">
+            <div className="w-10 h-1 bg-[#E2E8F0] rounded-full mx-auto mb-5" />
+            <h3 className="text-[16px] font-bold text-[#1F2937] mb-1">Name this QR code</h3>
+            <p className="text-[11px] text-[#94A3B8] mb-4 font-mono-nums truncate">
               {qrModal.decoded.slice(0, 50)}
             </p>
             <input
@@ -605,13 +636,13 @@ export default function AddExpense() {
               placeholder="e.g. College canteen"
               value={qrLabel}
               onChange={(e) => setQrLabel(e.target.value)}
-              className="w-full border border-[#E2E8F0] rounded-btn px-3 py-3 text-sm mb-3 focus:outline-none focus:border-[#D4AF37]"
+              className="w-full border border-[#E2E8F0] rounded-btn px-4 py-3 text-[13px] mb-3 focus:outline-none focus:border-[#D4AF37] bg-[#F8F7F2]"
               autoFocus
             />
             <select
               value={qrCat}
               onChange={(e) => setQrCat(e.target.value)}
-              className="w-full border border-[#E2E8F0] rounded-btn px-3 py-3 text-sm mb-4 bg-[#F8F7F2]"
+              className="w-full border border-[#E2E8F0] rounded-btn px-4 py-3 text-[13px] mb-4 bg-[#F8F7F2]"
             >
               {CATEGORIES.filter((c) => c.id !== 'friend_gave').map((c) => (
                 <option key={c.id} value={c.id}>
@@ -622,14 +653,14 @@ export default function AddExpense() {
             <div className="flex gap-3">
               <button
                 onClick={() => setQrModal(null)}
-                className="flex-1 border border-[#E2E8F0] text-[#4B5563] py-3 rounded-btn text-sm font-medium"
+                className="flex-1 border border-[#E2E8F0] text-[#4B5563] py-3 rounded-btn text-[13px] font-semibold"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveQRTag}
                 disabled={!qrLabel.trim() || qrSaving}
-                className="flex-1 bg-[#556B2F] text-white py-3 rounded-btn text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 bg-[#556B2F] text-white py-3 rounded-btn text-[13px] font-bold disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
               >
                 {qrSaving && <Loader2 size={14} className="animate-spin" />}
                 Save &amp; continue

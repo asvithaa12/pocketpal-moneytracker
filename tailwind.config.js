@@ -22,12 +22,20 @@ export default {
         mono: ['JetBrains Mono', 'monospace'],
       },
       borderRadius: {
-        card: '12px',
-        btn: '8px',
+        card: '16px',
+        btn: '10px',
         pill: '20px',
+        xl2: '20px',
       },
       spacing: {
-        'nav': '60px',
+        nav: '64px',
+      },
+      boxShadow: {
+        card: '0 2px 12px rgba(0,0,0,0.06)',
+        'card-hover': '0 8px 24px rgba(0,0,0,0.1)',
+        nav: '0 -4px 24px rgba(0,0,0,0.08)',
+        fab: '0 8px 20px rgba(85,107,47,0.35)',
+        'fab-hover': '0 12px 28px rgba(85,107,47,0.45)',
       },
     },
   },

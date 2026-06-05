@@ -6,15 +6,10 @@ function formatDate(dateStr) {
   const now = new Date();
   const diff = now - d;
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) {
-    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-  } else if (days === 1) {
-    return 'Yesterday';
-  } else if (days < 7) {
-    return d.toLocaleDateString('en-IN', { weekday: 'short' });
-  } else {
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-  }
+  if (days === 0) return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return d.toLocaleDateString('en-IN', { weekday: 'short' });
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
 export default function TransactionRow({ tx, onClick }) {
@@ -28,40 +23,40 @@ export default function TransactionRow({ tx, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-4 bg-white rounded-card border border-[#E2E8F0] transition-all duration-200 hover:border-[#D4AF37] hover:shadow-sm hover:bg-[#F8F7F2] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:ring-opacity-20 text-left min-h-[60px]"
+      className="w-full flex items-center gap-3.5 px-4 py-3.5 bg-white transition-all duration-150 hover:bg-[#FAFAF7] active:bg-[#F4F3EC] active:scale-[0.99] focus:outline-none text-left"
       aria-label={`Transaction: ${tx.description || cat.label}`}
     >
       <CategoryIcon categoryId={tx.category} size={18} />
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[#1F2937] truncate">
+        <p className="text-[13.5px] font-semibold text-[#1F2937] truncate leading-tight">
           {tx.description || cat.label}
         </p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-xs text-[#94A3B8]">{formatDate(tx.date)}</span>
-          <span className="text-xs text-[#94A3B8]">·</span>
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="text-[11px] text-[#B0BCCB] font-medium">{formatDate(tx.date)}</span>
+          <span className="text-[11px] text-[#CBD5E1]">·</span>
           <span
-            className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-            style={{ backgroundColor: mode.color + '20', color: mode.color }}
+            className="text-[10.5px] px-1.5 py-0.5 rounded-full font-semibold"
+            style={{ backgroundColor: mode.color + '18', color: mode.color }}
           >
             {mode.label}
           </span>
           {isFriendTx && tx.friendName && (
             <>
-              <span className="text-xs text-[#94A3B8]">·</span>
-              <span className="text-xs text-[#94A3B8] truncate">{tx.friendName}</span>
+              <span className="text-[11px] text-[#CBD5E1]">·</span>
+              <span className="text-[11px] text-[#94A3B8] truncate max-w-[80px]">{tx.friendName}</span>
             </>
           )}
         </div>
       </div>
 
       <span
-        className="font-mono-nums font-semibold text-sm flex-shrink-0"
+        className="font-mono-nums font-bold text-[14px] flex-shrink-0 tabular-nums"
         style={{
-          color: isPositive ? '#D4AF37' : isNegative ? '#EF4444' : '#1F2937'
+          color: isPositive ? '#D4AF37' : isNegative ? '#EF4444' : '#1F2937',
         }}
       >
-        {isPositive ? '+' : isNegative ? '−' : '−'}₹{tx.amount}
+        {isPositive ? '+' : '−'}₹{tx.amount.toLocaleString('en-IN')}
       </span>
     </button>
   );

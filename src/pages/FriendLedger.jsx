@@ -120,33 +120,58 @@ export default function FriendLedger() {
   };
 
   const inputClass = (f) =>
-    `w-full border rounded-btn px-3 py-3 text-sm bg-[#F8F7F2] text-[#1F2937] focus:outline-none transition-all ${
+    `w-full border rounded-btn px-4 py-3 text-[13px] bg-[#F8F7F2] text-[#1F2937] focus:outline-none transition-all ${
       aiFields.has(f) ? 'ai-filled' : 'border-[#E2E8F0] focus:border-[#D4AF37]'
     }`;
 
   return (
-    <div className="min-h-screen bg-[#F8F7F2] pb-28">
+    <div className="min-h-screen bg-[#F5F4EF] pb-28 page-enter">
       {/* Header */}
-      <div className="bg-[#556B2F] px-4 pt-12 pb-6">
-        <h1 className="text-white text-xl font-bold">Friend Ledger</h1>
-        <p className="text-[#B8C37E] text-sm mt-1">Track who owes who</p>
+      <div
+        className="px-5 pt-14 pb-8 relative overflow-hidden"
+        style={{ background: 'linear-gradient(150deg, #4A5E28 0%, #556B2F 50%, #3D4A20 100%)' }}
+      >
+        <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-[0.06]"
+          style={{ background: '#D4AF37', transform: 'translate(30%, -30%)' }} />
+        <h1 className="text-white text-[24px] font-bold tracking-tight relative z-10">Friend Ledger</h1>
+        <p className="text-[#8BAD5C] text-[13px] mt-1 relative z-10">Track who owes who</p>
       </div>
 
       <div className="px-4 mt-4">
+        {/* Summary cards */}
+        {!loading && friends.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="bg-white rounded-card p-4" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+              <p className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">They owe you</p>
+              <p className="font-mono-nums text-[20px] font-bold text-[#D4AF37]">
+                ₹{Object.values(balances).filter(b => b > 0).reduce((s, b) => s + b, 0).toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div className="bg-white rounded-card p-4" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+              <p className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">You owe them</p>
+              <p className="font-mono-nums text-[20px] font-bold text-[#EF4444]">
+                ₹{Math.abs(Object.values(balances).filter(b => b < 0).reduce((s, b) => s + b, 0)).toLocaleString('en-IN')}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-5">
           <button
             onClick={() => setSheet('gave')}
-            className="flex flex-col items-center gap-2 bg-[#EF4444] text-white py-4 px-3 rounded-card font-semibold text-sm active:scale-95 transition-transform shadow-sm"
+            className="flex flex-col items-center gap-2 bg-[#EF4444] text-white py-5 px-3 rounded-card font-bold text-[13px] active:scale-95 transition-transform"
+            style={{ boxShadow: '0 4px 14px rgba(239,68,68,0.25)' }}
           >
-            <ArrowUpRight size={22} />
+            <ArrowUpRight size={22} strokeWidth={2.5} />
             I gave money
           </button>
           <button
             onClick={() => setSheet('received')}
-            className="flex flex-col items-center gap-2 bg-[#D4AF37] text-white py-4 px-3 rounded-card font-semibold text-sm active:scale-95 transition-transform shadow-sm"
+            className="flex flex-col items-center gap-2 bg-[#D4AF37] text-white py-5 px-3 rounded-card font-bold text-[13px] active:scale-95 transition-transform"
+            style={{ boxShadow: '0 4px 14px rgba(212,175,55,0.25)' }}
           >
-            <ArrowDownLeft size={22} />
+            <ArrowDownLeft size={22} strokeWidth={2.5} />
             I received money
           </button>
         </div>
@@ -154,47 +179,49 @@ export default function FriendLedger() {
         {/* Friend list */}
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 size={20} className="animate-spin text-[#94A3B8]" />
+            <Loader2 size={22} className="animate-spin text-[#C8D6B0]" />
           </div>
         ) : friends.length === 0 ? (
-          <div className="bg-white rounded-card border border-[#E2E8F0] p-8 text-center">
-            <div className="text-4xl mb-3">🤝</div>
-            <p className="text-sm font-medium text-[#1F2937]">No friends yet</p>
-            <p className="text-xs text-[#94A3B8] mt-1">Record your first friend transaction above</p>
+          <div className="bg-white rounded-card p-10 text-center" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+            <div className="w-16 h-16 rounded-2xl bg-[#EDF2E4] flex items-center justify-center mx-auto mb-4">
+              <Plus size={28} className="text-[#8BAD5C]" />
+            </div>
+            <p className="text-[14px] font-bold text-[#1F2937]">No friends yet</p>
+            <p className="text-[12px] text-[#94A3B8] mt-1 leading-relaxed">
+              Record your first friend transaction using the buttons above
+            </p>
           </div>
         ) : (
-          <div className="bg-white rounded-card border border-[#E2E8F0] overflow-hidden">
-            <p className="text-xs text-[#94A3B8] font-semibold uppercase tracking-wide px-4 pt-4 pb-2">
-              Friends
+          <div className="bg-white rounded-card overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            <p className="text-[11px] text-[#94A3B8] font-bold uppercase tracking-wider px-4 pt-4 pb-3">
+              {friends.length} friend{friends.length > 1 ? 's' : ''}
             </p>
-            <div className="divide-y divide-[#E2E8F0]">
+            <div className="divide-y divide-[#F2F4F7]">
               {friends.map((name) => {
                 const balance = balances[name] ?? 0;
                 return (
                   <button
                     key={name}
                     onClick={() => navigate(`/friends/${encodeURIComponent(name)}`)}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#F8F7F2] transition-colors min-h-[60px]"
+                    className="w-full flex items-center gap-3.5 px-4 py-4 hover:bg-[#FAFAF7] transition-colors active:bg-[#F4F3EC] min-h-[64px]"
                   >
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-[13px] font-bold"
                       style={{
-                        backgroundColor:
-                          balance > 0 ? '#F8F7F2' : balance < 0 ? '#FEF2F2' : '#F1F5F9',
-                        color:
-                          balance > 0 ? '#556B2F' : balance < 0 ? '#EF4444' : '#94A3B8',
+                        backgroundColor: balance > 0 ? '#EDF2E4' : balance < 0 ? '#FEF2F2' : '#F1F5F9',
+                        color: balance > 0 ? '#556B2F' : balance < 0 ? '#EF4444' : '#94A3B8',
                       }}
                     >
                       {getInitials(name)}
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="text-sm font-semibold text-[#1F2937]">{name}</p>
-                      <p className="text-xs text-[#94A3B8] mt-0.5">
+                      <p className="text-[13.5px] font-bold text-[#1F2937]">{name}</p>
+                      <p className="text-[11px] text-[#94A3B8] mt-0.5">
                         {balance > 0 ? 'owes you' : balance < 0 ? 'you owe' : 'all settled'}
                       </p>
                     </div>
                     <BalanceBadge balance={balance} />
-                    <ChevronRight size={16} className="text-[#94A3B8]" />
+                    <ChevronRight size={15} className="text-[#CBD5E1]" />
                   </button>
                 );
               })}
@@ -210,12 +237,13 @@ export default function FriendLedger() {
           onClick={() => setSheet(null)}
         >
           <div
-            className="bg-white w-full max-w-md rounded-t-2xl p-6 pb-8 sheet-enter"
+            className="bg-white w-full max-w-md rounded-t-[20px] p-6 pb-8 sheet-enter"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-1 bg-[#E2E8F0] rounded-full mx-auto mb-5" />
+            <div className="flex items-center gap-3 mb-5">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                   sheet === 'gave' ? 'bg-red-100' : 'bg-yellow-100'
                 }`}
               >
@@ -226,14 +254,14 @@ export default function FriendLedger() {
                 )}
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#1F2937]">
+                <h3 className="text-[16px] font-bold text-[#1F2937]">
                   {sheet === 'gave' ? 'I gave money' : 'I received money'}
                 </h3>
-                <p className="text-xs text-[#94A3B8]">Use voice or fill manually</p>
+                <p className="text-[11.5px] text-[#94A3B8]">Use voice or fill manually</p>
               </div>
             </div>
 
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-5">
               <VoiceButton onResult={handleVoice} onError={(msg) => show(msg, 'error')} />
             </div>
 
@@ -255,11 +283,10 @@ export default function FriendLedger() {
                   nameSuggestions.filter(
                     (n) => n.toLowerCase().includes(form.name.toLowerCase()) && n !== form.name
                   ).length > 0 && (
-                    <div className="absolute top-full left-0 right-0 bg-white border border-[#E2E8F0] rounded-btn shadow-md z-10 overflow-hidden">
+                    <div className="absolute top-full left-0 right-0 bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-10 overflow-hidden mt-1">
                       {nameSuggestions
                         .filter(
-                          (n) =>
-                            n.toLowerCase().includes(form.name.toLowerCase()) && n !== form.name
+                          (n) => n.toLowerCase().includes(form.name.toLowerCase()) && n !== form.name
                         )
                         .map((n) => (
                           <button
@@ -268,7 +295,7 @@ export default function FriendLedger() {
                               setForm((f) => ({ ...f, name: n }));
                               setShowSuggestions(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-[#F8F7F2] text-[#4B5563]"
+                            className="w-full text-left px-4 py-3 text-[13px] hover:bg-[#F8F7F2] text-[#4B5563] font-medium"
                           >
                             {n}
                           </button>
@@ -304,14 +331,14 @@ export default function FriendLedger() {
                 placeholder="Note (optional)"
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                className="w-full border border-[#E2E8F0] rounded-btn px-3 py-3 text-sm bg-[#F8F7F2] text-[#1F2937] focus:outline-none focus:border-[#D4AF37]"
+                className="w-full border border-[#E2E8F0] rounded-btn px-4 py-3 text-[13px] bg-[#F8F7F2] text-[#1F2937] focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
 
             <button
               onClick={handleSave}
               disabled={saving || !form.amount || !form.name.trim()}
-              className={`mt-4 w-full py-3.5 rounded-btn font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2 ${
+              className={`mt-5 w-full py-4 rounded-btn font-bold text-[14px] text-white disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform ${
                 sheet === 'gave' ? 'bg-[#EF4444]' : 'bg-[#D4AF37]'
               }`}
             >
