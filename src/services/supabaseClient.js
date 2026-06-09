@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const url = import.meta.env.VITE_SUPABASE_URL ?? '';
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 if (!url || !key) {
-  throw new Error('Supabase env vars missing: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY required');
+  console.warn('[supabase] Missing env vars — VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY not found. Data features will be unavailable.');
 }
 
-export const supabase = createClient(url, key);
+export const supabase = (url && key) ? createClient(url, key) : null;
