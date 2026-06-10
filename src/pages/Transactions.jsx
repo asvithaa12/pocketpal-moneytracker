@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import TransactionRow from '../components/TransactionRow';
-import { getTransactions } from '../services/storage';
+import { api } from '../services/api';
 import { CATEGORIES, PAYMENT_MODES } from '../data/categories';
 
 export default function Transactions() {
@@ -16,8 +16,8 @@ export default function Transactions() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const txs = await getTransactions();
-      setTransactions(txs);
+      const txs = await api.get('/transactions');
+      setTransactions(txs || []);
     } catch (err) {
       console.error('[Transactions] load error:', err);
     } finally {

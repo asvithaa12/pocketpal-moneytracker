@@ -7,9 +7,8 @@ import {
 import { TrendingDown, Wallet, Wifi, Users, Sparkles, ChevronDown, Loader2, RefreshCw, ArrowRight, Receipt } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import TransactionRow from '../components/TransactionRow';
+import { api } from '../services/api';
 import {
-  getTransactions,
-  getDashboardStats,
   getWeekRange,
   isSummaryGeneratedThisWeek,
   setLastSummaryDate,
@@ -72,7 +71,10 @@ export default function Home() {
     setLoadingStats(true);
     setLoadingTxs(true);
     try {
-      const [txs, s] = await Promise.all([getTransactions(), getDashboardStats()]);
+      const [txs, s] = await Promise.all([
+        api.get('/transactions'),
+        api.get('/analytics/dashboard')
+      ]);
       setTransactions(txs);
       setStats(s);
     } catch (err) {

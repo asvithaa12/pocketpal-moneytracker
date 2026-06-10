@@ -14,6 +14,7 @@ import { supabase } from './supabaseClient';
  */
 export async function getTransactions() {
   console.log('[storage] getTransactions');
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
@@ -33,6 +34,7 @@ export async function getTransactions() {
 export async function saveTransaction(tx) {
   const row = txToDbRow(tx);
   console.log('[storage] saveTransaction', row);
+  if (!supabase) throw new Error('Supabase not configured');
 
   const { data, error } = await supabase
     .from('transactions')
@@ -54,6 +56,7 @@ export async function saveTransaction(tx) {
 export async function saveTransactions(txList) {
   const rows = txList.map(txToDbRow);
   console.log('[storage] saveTransactions batch:', rows.length);
+  if (!supabase) throw new Error('Supabase not configured');
 
   const { data, error } = await supabase
     .from('transactions')
@@ -72,6 +75,7 @@ export async function saveTransactions(txList) {
  */
 export async function deleteTransaction(id) {
   console.log('[storage] deleteTransaction', id);
+  if (!supabase) throw new Error('Supabase not configured');
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) {
     console.error('[storage] deleteTransaction error:', error.message);
@@ -84,6 +88,7 @@ export async function deleteTransaction(id) {
  */
 export async function clearTransactions() {
   console.log('[storage] clearTransactions');
+  if (!supabase) throw new Error('Supabase not configured');
   const { error } = await supabase
     .from('transactions')
     .delete()
@@ -101,6 +106,7 @@ export async function clearTransactions() {
  */
 export async function getQRTag(hash) {
   console.log('[storage] getQRTag', hash);
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('qr_tags')
     .select('*')
@@ -123,6 +129,7 @@ export async function getQRTag(hash) {
  */
 export async function getQRTags() {
   console.log('[storage] getQRTags');
+  if (!supabase) return {};
   const { data, error } = await supabase
     .from('qr_tags')
     .select('*')
@@ -140,6 +147,7 @@ export async function getQRTags() {
  */
 export async function saveQRTag(hash, tag) {
   console.log('[storage] saveQRTag', hash, tag);
+  if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase
     .from('qr_tags')
     .insert({
@@ -164,6 +172,7 @@ export async function saveQRTag(hash, tag) {
  */
 export async function incrementQRTagScan(hash) {
   console.log('[storage] incrementQRTagScan', hash);
+  if (!supabase) return;
 
   const { data: existing, error: fetchErr } = await supabase
     .from('qr_tags')
@@ -191,6 +200,7 @@ export async function incrementQRTagScan(hash) {
  */
 export async function updateQRTag(hash, updates) {
   console.log('[storage] updateQRTag', hash, updates);
+  if (!supabase) throw new Error('Supabase not configured');
   const row = {};
   if (updates.label !== undefined) row.label = updates.label;
   if (updates.categoryId !== undefined) row.category_id = updates.categoryId;
@@ -207,6 +217,7 @@ export async function updateQRTag(hash, updates) {
  */
 export async function deleteQRTag(hash) {
   console.log('[storage] deleteQRTag', hash);
+  if (!supabase) throw new Error('Supabase not configured');
   const { error } = await supabase.from('qr_tags').delete().eq('hash', hash);
   if (error) {
     console.error('[storage] deleteQRTag error:', error.message);
@@ -219,6 +230,7 @@ export async function deleteQRTag(hash) {
  */
 export async function clearQRTags() {
   console.log('[storage] clearQRTags');
+  if (!supabase) throw new Error('Supabase not configured');
   const { error } = await supabase.from('qr_tags').delete().not('id', 'is', null);
   if (error) {
     console.error('[storage] clearQRTags error:', error.message);
@@ -233,6 +245,7 @@ export async function clearQRTags() {
  */
 export async function getDashboardStats() {
   console.log('[storage] getDashboardStats');
+  if (!supabase) return { spentThisWeek: 0, cashThisMonth: 0, onlineThisMonth: 0, friendsOweYou: 0 };
 
   const now = new Date();
 
@@ -297,6 +310,7 @@ export async function getDashboardStats() {
 // ─── Friends ──────────────────────────────────────────────────────────────────
 
 export async function getUniqueFriendNames() {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('transactions')
     .select('friend_name')
@@ -310,6 +324,7 @@ export async function getUniqueFriendNames() {
 }
 
 export async function getFriendBalance(name) {
+  if (!supabase) return 0;
   const { data, error } = await supabase
     .from('transactions')
     .select('type, amount')

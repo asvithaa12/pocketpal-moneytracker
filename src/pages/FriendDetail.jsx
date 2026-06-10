@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, ArrowUpRight, ArrowDownLeft, Loader2 } from 'lucide-react';
-import { getTransactions, getFriendBalance, saveTransaction } from '../services/storage';
+import { api } from '../services/api';
 import { createTransaction } from '../data/schema';
 import { PAYMENT_MODES, getPaymentModeById } from '../data/categories';
 import { Toast, useToast } from '../components/Toast';
@@ -20,15 +20,17 @@ export default function FriendDetail() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [all, bal] = await Promise.all([
-        getTransactions(),
-        getFriendBalance(friendName),
+      const [all, lendingStats] = await Promise.all([
+        api.get('/transactions'),
+        api.get('/analytics/lending'),
       ]);
-      const mine = all
+      const mine = (all || [])
         .filter((t) => t.friendName === friendName)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       setTransactions(mine);
-      setBalance(bal);
+      
+      const friendStat = lendingStats?.friends?.find(f => f.friendName === friendName);
+      setBalance(friendStat ? friendStat.balance : 0);
     } catch (err) {
       console.error('[FriendDetail] load error:', err);
     } finally {
@@ -55,7 +57,7 @@ export default function FriendDetail() {
         friendName,
         source: 'manual',
       });
-      await saveTransaction(tx);
+      await api.post('/transactions', tx);
       await load();
       setShowSettle(false);
       show('Settled!', 'success');

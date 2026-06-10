@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Trash2, Edit3, Check, X, Database, AlertTriangle, Loader2, QrCode, Info, Package } from 'lucide-react';
-import {
-  getQRTags, updateQRTag, deleteQRTag, clearTransactions, clearQRTags, saveTransactions
-} from '../services/storage';
+import { api } from '../services/api';
 import { createTransaction } from '../data/schema';
 import { CATEGORIES, getCategoryById } from '../data/categories';
 import { Toast, useToast } from '../components/Toast';
@@ -43,8 +41,15 @@ export default function Settings() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const tags = await getQRTags();
-      setQrTags(tags);
+      const tags = await api.get('/qr-tags');
+      // Convert tags array to an object map with hash as key
+      const tagsMap = {};
+      if (tags && Array.isArray(tags)) {
+        for (const tag of tags) {
+          tagsMap[tag.hash] = tag;
+        }
+      }
+      setQrTags(tagsMap);
     } catch (err) {
       console.error('[Settings] getQRTags error:', err);
     } finally {
@@ -57,7 +62,7 @@ export default function Settings() {
   const handleEditSave = async (hash) => {
     setBusy(true);
     try {
-      await updateQRTag(hash, { label: editLabel.trim(), categoryId: editCat });
+      await api.put(`/qr-tags/${hash}`, { label: editLabel.trim(), categoryId: editCat });
       setEditHash(null);
       await reload();
       show('QR tag updated', 'success');
@@ -72,7 +77,7 @@ export default function Settings() {
   const handleDelete = async (hash) => {
     setBusy(true);
     try {
-      await deleteQRTag(hash);
+      await api.delete(`/qr-tags/${hash}`);
       await reload();
       show('QR tag deleted', 'success');
     } catch (err) {
@@ -87,7 +92,7 @@ export default function Settings() {
     setBusy(true);
     try {
       const demo = generateDemoData();
-      await saveTransactions(demo);
+      await api.post('/transactions', demo);
       show('Loaded 15 demo transactions', 'success');
     } catch (err) {
       console.error('[Settings] loadDemo error:', err);
@@ -100,7 +105,7 @@ export default function Settings() {
   const handleClearAll = async () => {
     setBusy(true);
     try {
-      await Promise.all([clearTransactions(), clearQRTags()]);
+      await Promise.all([api.delete('/transactions'), api.delete('/qr-tags')]);
       localStorage.removeItem('pp_summary_text');
       localStorage.removeItem('pp_last_summary_date');
       setShowClearConfirm(false);

@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowUpRight, ArrowDownLeft, ChevronRight, Loader2 } from 'lucide-react';
-import {
-  getTransactions,
-  getFriendBalance,
-  getUniqueFriendNames,
-  saveTransaction,
-} from '../services/storage';
+import { api } from '../services/api';
 import { createTransaction } from '../data/schema';
 import { PAYMENT_MODES } from '../data/categories';
 import VoiceButton from '../components/VoiceButton';
@@ -52,17 +47,22 @@ export default function FriendLedger() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const names = await getUniqueFriendNames();
-      setFriends(names);
-      setNameSuggestions(names);
-      // Load balances for all friends
-      const bals = {};
-      await Promise.all(
-        names.map(async (name) => {
-          bals[name] = await getFriendBalance(name);
-        })
-      );
-      setBalances(bals);
+      const stats = await api.get('/analytics/lending');
+      if (stats && stats.friends) {
+        const names = stats.friends.map(f => f.friendName);
+        setFriends(names);
+        setNameSuggestions(names);
+        
+        const bals = {};
+        for (const f of stats.friends) {
+          bals[f.friendName] = f.balance;
+        }
+        setBalances(bals);
+      } else {
+        setFriends([]);
+        setNameSuggestions([]);
+        setBalances({});
+      }
     } catch (err) {
       console.error('[FriendLedger] reload error:', err);
     } finally {
@@ -105,7 +105,7 @@ export default function FriendLedger() {
         friendName: form.name.trim(),
         source: 'manual',
       });
-      await saveTransaction(tx);
+      await api.post('/transactions', tx);
       setSheet(null);
       setForm({ name: '', amount: '', subcategory: 'cash', note: '' });
       setAiFields(new Set());

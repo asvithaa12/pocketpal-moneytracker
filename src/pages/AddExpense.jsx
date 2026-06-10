@@ -6,13 +6,7 @@ import QRScanner from '../components/QRScanner';
 import { Toast, useToast } from '../components/Toast';
 import { CATEGORIES, PAYMENT_MODES } from '../data/categories';
 import { createTransaction } from '../data/schema';
-import {
-  saveTransaction,
-  saveTransactions,
-  getQRTag,
-  saveQRTag,
-  incrementQRTagScan,
-} from '../services/storage';
+import { api } from '../services/api';
 import { parseScreenshot } from '../services/screenshotParser';
 
 const TABS = [
@@ -126,9 +120,9 @@ export default function AddExpense() {
     console.log('[AddExpense] QR scan hash:', hash);
 
     try {
-      const tag = await getQRTag(hash);
+      const tag = await api.get(`/qr-tags/${hash}`);
       if (tag) {
-        await incrementQRTagScan(hash);
+        await api.post('/qr-tags', { hash, label: tag.label, categoryId: tag.categoryId });
         setForm((f) => ({
           ...f,
           category: tag.categoryId,
@@ -155,7 +149,8 @@ export default function AddExpense() {
     if (!qrLabel.trim() || !qrModal) return;
     setQrSaving(true);
     try {
-      const saved = await saveQRTag(qrModal.hash, {
+      const saved = await api.post('/qr-tags', {
+        hash: qrModal.hash,
         label: qrLabel.trim(),
         categoryId: qrCat,
       });
@@ -229,7 +224,7 @@ export default function AddExpense() {
           source: 'screenshot',
         })
       );
-      await saveTransactions(txs);
+      await api.post('/transactions', txs);
       show(`Imported ${txs.length} transaction${txs.length > 1 ? 's' : ''}`, 'success');
       setTimeout(() => navigate('/transactions'), 900);
     } catch (err) {
@@ -267,7 +262,7 @@ export default function AddExpense() {
         source: form.source || 'manual',
         qrId: form.qrId || null,
       });
-      await saveTransaction(tx);
+      await api.post('/transactions', tx);
       show('Saved!', 'success');
       setTimeout(() => navigate('/'), 800);
     } catch (err) {
